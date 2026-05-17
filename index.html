@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>빈자리 — 지하철 좌석 공유</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#080d1a;--sf:#0f1623;--sf2:#161f30;--bd:rgba(255,255,255,.07);--g:#00e87a;--y:#ffd600;--r:#ff3d5a;--c:#00d4ff;--p:#a78bfa;--tx:#eef2ff;--mu:#5b6b8a;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;overflow-x:hidden;}
+::-webkit-scrollbar{width:0;height:0;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes load{to{width:100%}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* SPLASH */
+#splash{position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;transition:opacity .6s;}
+.sp-logo{font-size:56px;font-weight:900;letter-spacing:-3px;background:linear-gradient(135deg,var(--g),var(--c));-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:pulse 1.4s ease-in-out infinite;}
+.sp-sub{color:var(--mu);font-size:11px;letter-spacing:4px;text-transform:uppercase;}
+.sp-bar-wrap{width:160px;height:3px;background:var(--sf2);border-radius:99px;overflow:hidden;margin-top:18px;}
+.sp-bar{height:100%;width:0;background:linear-gradient(90deg,var(--g),var(--c));border-radius:99px;animation:load 2.2s ease forwards;}
+
+/* NAV */
+nav{position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(8,13,26,.97);backdrop-filter:blur(20px);border-top:1px solid var(--bd);display:flex;justify-content:space-around;align-items:center;padding:10px 0 18px;}
+.nb{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:5px 12px;border-radius:12px;transition:all .2s;border:none;background:none;color:var(--mu);}
+.nb.active{color:var(--g);}
+.nb svg{width:21px;height:21px;}
+.nb span{font-size:10px;font-weight:500;}
+
+/* PAGE */
+.page{display:none;padding-bottom:88px;min-height:100vh;animation:fadeUp .3s ease;}
+.page.active{display:block;}
+
+/* TOPBAR */
+.topbar{padding:48px 18px 12px;display:flex;justify-content:space-between;align-items:center;}
+.tlogo{font-size:22px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,var(--g),var(--c));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.pts-badge{display:flex;align-items:center;gap:5px;background:rgba(0,232,122,.1);border:1px solid rgba(0,232,122,.22);padding:5px 12px;border-radius:99px;font-size:12px;font-weight:700;color:var(--g);}
+
+/* NOTIF */
+.notif{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-120px);background:var(--sf);border:1px solid var(--bd);border-radius:15px;padding:11px 16px;display:flex;align-items:center;gap:9px;z-index:500;min-width:260px;max-width:340px;box-shadow:0 8px 28px rgba(0,0,0,.5);transition:transform .4s cubic-bezier(.34,1.56,.64,1);}
+.notif.show{transform:translateX(-50%) translateY(0);}
+.ni{font-size:17px;}.nt{font-size:12px;font-weight:500;flex:1;}.nx{color:var(--mu);cursor:pointer;}
+
+/* MODAL */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .3s;}
+.mo.open{opacity:1;pointer-events:all;}
+.ms{background:var(--sf);border-radius:24px 24px 0 0;padding:20px 16px 40px;width:100%;transform:translateY(100%);transition:transform .4s cubic-bezier(.34,1.56,.64,1);}
+.mo.open .ms{transform:translateY(0);}
+.mh{width:36px;height:4px;background:var(--bd);border-radius:99px;margin:0 auto 16px;}
+.mtitle{font-size:16px;font-weight:700;margin-bottom:14px;}
+.di{padding:12px 14px;border-radius:12px;background:var(--sf2);border:1px solid var(--bd);cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:10px;margin-bottom:7px;}
+.di:hover{border-color:var(--g);}
+.di .dl{font-size:13px;font-weight:600;}
+.di .ds{font-size:10px;color:var(--mu);margin-top:2px;}
+
+/* CARD */
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:18px;padding:16px;margin:0 16px 12px;}
+.slbl{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--mu);padding:0 16px;margin-bottom:7px;display:block;}
+
+/* HOME */
+.hero{background:linear-gradient(135deg,#0d1f3c,#0a2d1f);border:1px solid rgba(0,232,122,.16);border-radius:22px;padding:20px;margin:0 16px 12px;position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;top:-50px;right:-50px;width:170px;height:170px;background:radial-gradient(circle,rgba(0,232,122,.1),transparent 70%);}
+.htitle{font-size:22px;font-weight:900;line-height:1.28;margin-bottom:6px;}
+.htitle em{color:var(--g);font-style:normal;}
+.hdesc{color:var(--mu);font-size:11px;line-height:1.6;margin-bottom:16px;}
+.btn-p{width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--g),#00b85e);color:#000;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;}
+.btn-p:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,232,122,.28);}
+.btn-s{width:100%;padding:13px;border-radius:12px;border:2px solid var(--g);background:transparent;color:var(--g);font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;margin-top:8px;}
+.btn-s:hover{background:rgba(0,232,122,.08);}
+.kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:0 16px 12px;}
+.kpi{background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:13px 9px;text-align:center;}
+.kv{font-size:19px;font-weight:900;line-height:1;}
+.kv.g{color:var(--g);}.kv.y{color:var(--y);}.kv.c{color:var(--c);}
+.kl{font-size:9px;color:var(--mu);margin-top:3px;}
+.beacon{background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.17);border-radius:12px;padding:10px 14px;margin:0 16px 12px;display:flex;align-items:center;gap:8px;}
+.bdot{width:7px;height:7px;border-radius:50%;background:var(--c);animation:blink 1s ease-in-out infinite;}
+.btxt{font-size:11px;color:var(--c);font-weight:500;}
+.mcard{background:linear-gradient(135deg,rgba(0,232,122,.1),rgba(0,212,255,.07));border:1px solid rgba(0,232,122,.25);border-radius:15px;padding:14px;margin:0 16px 12px;display:flex;align-items:center;gap:12px;}
+.mib{width:40px;height:40px;border-radius:11px;background:rgba(0,232,122,.16);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.minfo{flex:1;}
+.mttl{font-size:12px;font-weight:700;color:var(--g);margin-bottom:2px;}
+.msub{font-size:10px;color:var(--mu);}
+.mbtn{padding:6px 12px;border-radius:9px;border:none;background:var(--g);color:#000;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;}
+
+/* EXIT REGISTER (하차 등록 폼) */
+.exit-form{background:var(--sf);border:1px solid var(--bd);border-radius:18px;padding:18px;margin:0 16px 12px;}
+.ef-title{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.ef-row{margin-bottom:12px;}
+.ef-label{font-size:11px;color:var(--mu);margin-bottom:6px;display:block;}
+.ef-input{width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:10px;padding:11px 14px;color:var(--tx);font-size:13px;font-family:inherit;}
+.ef-input:focus{outline:none;border-color:var(--g);}
+.ef-select{width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:10px;padding:11px 14px;color:var(--tx);font-size:13px;font-family:inherit;cursor:pointer;}
+.ef-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.ef-priority{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:rgba(255,214,0,.07);border:1px solid rgba(255,214,0,.2);cursor:pointer;}
+.ef-priority input{width:16px;height:16px;accent-color:var(--y);}
+.ef-priority-label{font-size:12px;color:var(--y);}
+
+/* SEAT MAP */
+.lbadge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;}
+.line2{background:rgba(0,163,76,.13);color:#00a34c;border:1px solid rgba(0,163,76,.26);}
+.l2dot{width:8px;height:8px;border-radius:50%;background:#00a34c;}
+.st-scroll{display:flex;overflow-x:auto;padding:10px 16px 5px;}
+.sti{display:flex;flex-direction:column;align-items:center;min-width:66px;position:relative;}
+.stn{font-size:9px;color:var(--mu);margin-bottom:4px;text-align:center;white-space:nowrap;}
+.std{width:12px;height:12px;border-radius:50%;background:var(--sf2);border:2px solid var(--mu);z-index:1;}
+.sti.cur .std{background:var(--c);border-color:var(--c);box-shadow:0 0 0 3px rgba(0,212,255,.18);}
+.sti.dst .std{background:var(--r);border-color:var(--r);}
+.sti.psd .std{background:var(--sf2);border-color:rgba(255,255,255,.17);}
+.stl{position:absolute;top:50%;width:100%;height:2px;background:var(--sf2);z-index:0;margin-top:4px;}
+.sti.psd .stl{background:rgba(0,212,255,.25);}
+.sti:first-child .stl{left:50%;width:50%;}
+.sti:last-child .stl{right:50%;width:50%;}
+.stm{font-size:8px;color:var(--g);margin-top:3px;font-weight:700;}
+.car-scroll{display:flex;overflow-x:auto;padding:7px 16px 3px;}
+.cbtn{flex-shrink:0;min-width:46px;padding:6px 2px;border:1px solid var(--bd);border-right:none;background:var(--sf);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;gap:2px;}
+.cbtn:first-child{border-radius:8px 0 0 8px;}.cbtn:last-child{border-radius:0 8px 8px 0;border-right:1px solid var(--bd);}
+.cbtn.sel{background:rgba(0,212,255,.09);border-color:var(--c);z-index:1;}
+.cnum{font-size:10px;font-weight:700;}.ccong{width:30px;height:4px;border-radius:2px;overflow:hidden;background:var(--sf2);}.ccf{height:100%;border-radius:2px;}.cpct{font-size:8px;color:var(--mu);}
+.zone-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;padding:0 16px;margin-bottom:9px;}
+.zc{background:var(--sf);border:1px solid var(--bd);border-radius:11px;padding:9px 7px;text-align:center;}
+.zn{font-size:9px;color:var(--mu);margin-bottom:2px;}.zv{font-size:14px;font-weight:800;}
+.zv.g{color:var(--g);}.zv.y{color:var(--y);}.zv.r{color:var(--r);}
+.zs{font-size:8px;color:var(--mu);margin-top:1px;}
+.smap{margin:0 16px 4px;background:#05080f;border:1px solid rgba(255,255,255,.07);border-radius:14px;overflow:hidden;}
+.dbar{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;background:rgba(0,0,0,.38);border-bottom:1px solid rgba(255,255,255,.05);font-size:9px;}
+.df{color:var(--c);font-weight:700;}.db{color:var(--mu);}
+.wlbl{font-size:7px;color:rgba(255,255,255,.17);letter-spacing:2px;text-transform:uppercase;padding:2px 12px;text-align:center;}
+.ws{height:4px;background:repeating-linear-gradient(90deg,rgba(0,212,255,.07) 0,rgba(0,212,255,.07) 30px,rgba(255,255,255,.02) 30px,rgba(255,255,255,.02) 36px);border-bottom:1px solid rgba(0,212,255,.12);}
+.ws.bot{border-bottom:none;border-top:1px solid rgba(0,212,255,.12);}
+.ss{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;padding:6px 6px 8px;}
+.tb{display:inline-flex;flex-direction:row;align-items:stretch;min-width:max-content;border:1px solid rgba(255,255,255,.05);border-radius:6px;overflow:hidden;}
+.tc{width:10px;flex-shrink:0;background:rgba(255,255,255,.02);border-right:1px solid rgba(255,255,255,.05);}
+.tc.r{border-right:none;border-left:1px solid rgba(255,255,255,.05);}
+.td{width:17px;flex-shrink:0;display:flex;flex-direction:column;align-items:stretch;background:rgba(0,0,0,.16);border-left:1px solid rgba(255,255,255,.04);border-right:1px solid rgba(255,255,255,.04);position:relative;}
+.td .dw{flex:1;background:rgba(255,255,255,.02);}
+.td .do{height:30px;flex-shrink:0;background:rgba(0,212,255,.05);border-top:2px solid rgba(0,212,255,.25);border-bottom:2px solid rgba(0,212,255,.25);display:flex;align-items:center;justify-content:center;}
+.td .do.mine{background:rgba(0,212,255,.17);border-color:var(--c);}
+.td .dn{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);font-size:6px;font-weight:700;color:var(--c);white-space:nowrap;opacity:.7;}
+.td .dt{font-size:5px;color:var(--c);font-weight:700;writing-mode:vertical-rl;}
+.tz{display:flex;flex-direction:column;padding:2px 2px;border-left:1px solid rgba(255,255,255,.03);}
+.tsr{display:flex;flex-direction:row;gap:2px;}
+.ta{height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;}
+.tal{position:absolute;top:50%;left:0;right:0;height:1px;background:rgba(255,255,255,.04);}
+.talb{position:relative;z-index:1;font-size:6px;color:rgba(255,255,255,.12);background:#05080f;padding:0 4px;white-space:nowrap;}
+.st{width:34px;height:30px;border-radius:5px;flex-shrink:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:all .13s;border:1.5px solid transparent;position:relative;}
+.st:hover{transform:scale(1.11);z-index:5;}
+.st.sg{background:rgba(0,232,122,.16);border-color:rgba(0,232,122,.5);}
+.st.sy{background:rgba(255,214,0,.12);border-color:rgba(255,214,0,.4);}
+.st.sr{background:rgba(255,61,90,.1);border-color:rgba(255,61,90,.33);}
+.st.se{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.08);}
+.st.srec{background:rgba(0,212,255,.16);border-color:var(--c);box-shadow:0 0 0 2px rgba(0,212,255,.2);}
+.st.spri{background:rgba(255,214,0,.07);border-color:rgba(255,214,0,.4);}
+.st.crowd{box-shadow:0 0 0 2px var(--g);}  /* 실제 사용자 데이터 */
+.st .sn{font-size:7px;font-weight:700;line-height:1.1;text-align:center;}
+.st.sg .sn,.st.crowd .sn{color:var(--g);}
+.st.sy .sn{color:var(--y);}.st.sr .sn{color:var(--r);}
+.st.se .sn{color:var(--mu);font-size:8px;}.st.srec .sn{color:var(--c);}
+.st.spri .sn{color:var(--y);font-size:6px;}
+.st .si{font-size:7px;line-height:1;}
+.crowd-badge{position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:var(--g);border:1px solid var(--bg);}
+.leg2{display:flex;gap:8px;padding:5px 16px 4px;flex-wrap:wrap;border-top:1px solid var(--bd);margin:0 16px;}
+.l2i{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--mu);}
+.ld{width:8px;height:8px;border-radius:2px;border:1px solid;flex-shrink:0;}
+
+/* CROWD COUNT 배지 */
+.crowd-count{display:inline-flex;align-items:center;gap:5px;background:rgba(0,232,122,.1);border:1px solid rgba(0,232,122,.25);padding:3px 10px;border-radius:99px;font-size:10px;color:var(--g);font-weight:600;}
+
+/* AI 페이지 */
+.ai-hero{background:linear-gradient(135deg,#0c0e26,#071a14);border:1px solid rgba(167,139,250,.18);border-radius:20px;padding:18px;margin:0 16px 12px;position:relative;overflow:hidden;}
+.ai-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:150px;height:150px;background:radial-gradient(circle,rgba(167,139,250,.09),transparent 70%);}
+.ai-tag{display:inline-flex;align-items:center;gap:5px;background:rgba(167,139,250,.13);border:1px solid rgba(167,139,250,.27);padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;color:var(--p);margin-bottom:9px;}
+.ai-htitle{font-size:19px;font-weight:900;line-height:1.3;margin-bottom:5px;}
+.ai-htitle em{color:var(--p);font-style:normal;}
+.ai-hdesc{font-size:11px;color:var(--mu);line-height:1.6;}
+.pipe{margin:0 16px 12px;}
+.ptitle{font-size:12px;font-weight:700;margin-bottom:9px;}
+.pstep{background:var(--sf);border:1px solid var(--bd);border-radius:13px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:flex-start;gap:11px;position:relative;}
+.pstep::after{content:'';position:absolute;left:24px;bottom:-7px;width:2px;height:7px;background:rgba(255,255,255,.07);}
+.pstep:last-child::after{display:none;}
+.pico{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.pbody{flex:1;}.pname{font-size:12px;font-weight:700;margin-bottom:2px;}.pdesc{font-size:10px;color:var(--mu);line-height:1.55;}
+.pbadge{display:inline-flex;padding:2px 7px;border-radius:99px;font-size:9px;font-weight:600;margin-top:4px;}
+.heatmap{margin:0 16px 12px;}
+.hm-row{display:flex;gap:4px;overflow-x:auto;padding:2px 0 5px;}
+.hmc{flex-shrink:0;background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:8px 6px;text-align:center;cursor:pointer;min-width:48px;}
+.hmn{font-size:11px;font-weight:700;margin-bottom:3px;}
+.hmbar{width:30px;height:24px;border-radius:4px;margin:0 auto 3px;background:var(--sf2);display:flex;align-items:flex-end;overflow:hidden;}
+.hmf{width:100%;border-radius:2px;transition:height .6s ease;}
+.hmpct{font-size:8px;font-weight:700;}
+.hm-leg{display:flex;gap:9px;justify-content:center;margin-top:5px;}
+.hml{display:flex;align-items:center;gap:3px;font-size:9px;color:var(--mu);}
+.hmld{width:7px;height:7px;border-radius:2px;}
+.airc{background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:15px;margin:0 16px 9px;}
+.airch{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.airspot{font-size:15px;font-weight:800;}.airspot span{color:var(--c);}
+.confn{font-size:20px;font-weight:900;font-family:'Space Mono',monospace;color:var(--g);line-height:1;}
+.confl{font-size:9px;color:var(--mu);}
+.cbw{display:flex;align-items:center;gap:7px;margin-bottom:9px;}
+.cbl{font-size:10px;color:var(--mu);min-width:42px;}
+.cbb{flex:1;height:4px;background:var(--sf2);border-radius:99px;overflow:hidden;}
+.cbf{height:100%;border-radius:99px;}
+.insight{font-size:10px;color:var(--mu);background:var(--sf2);padding:8px 11px;border-radius:9px;line-height:1.6;}
+.insight strong{color:var(--tx);}
+.tag-g{display:inline-flex;padding:3px 8px;border-radius:99px;font-size:9px;font-weight:600;background:rgba(0,232,122,.1);color:var(--g);border:1px solid rgba(0,232,122,.2);}
+.tag-p{display:inline-flex;padding:3px 8px;border-radius:99px;font-size:9px;font-weight:600;background:rgba(167,139,250,.1);color:var(--p);border:1px solid rgba(167,139,250,.2);}
+.tag-c{display:inline-flex;padding:3px 8px;border-radius:99px;font-size:9px;font-weight:600;background:rgba(0,212,255,.1);color:var(--c);border:1px solid rgba(0,212,255,.2);}
+.plist{padding:0 16px 12px;display:flex;flex-direction:column;gap:7px;}
+.pitem{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px;}
+.ptime{background:rgba(0,212,255,.09);color:var(--c);padding:3px 8px;border-radius:6px;font-size:9px;font-weight:700;white-space:nowrap;margin-top:1px;}
+.ptxt{font-size:11px;line-height:1.5;}.ptxt strong{color:var(--tx);}.ptxt span{color:var(--mu);}
+.lgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px 12px;}
+.lcard{background:var(--sf);border:1px solid var(--bd);border-radius:13px;padding:13px;text-align:center;}
+.lnum{font-size:20px;font-weight:900;font-family:'Space Mono',monospace;line-height:1;}
+.llbl{font-size:9px;color:var(--mu);margin-top:2px;}
+
+/* REWARDS */
+.ptsbig{text-align:center;padding:20px;background:linear-gradient(135deg,#0d1a2e,#0a2d1a);border:1px solid rgba(0,232,122,.17);border-radius:20px;margin:0 16px 12px;position:relative;overflow:hidden;}
+.ptsbig::after{content:'';position:absolute;bottom:-40px;left:50%;transform:translateX(-50%);width:260px;height:260px;background:radial-gradient(circle,rgba(0,232,122,.07),transparent 70%);}
+.pnum{font-size:50px;font-weight:900;color:var(--g);line-height:1;font-family:'Space Mono',monospace;}
+.punt{font-size:12px;color:var(--mu);margin-top:3px;}.psub{font-size:11px;color:rgba(0,232,122,.5);margin-top:5px;}
+.elst{padding:0 16px 12px;display:flex;flex-direction:column;gap:6px;}
+.ei{background:var(--sf);border:1px solid var(--bd);border-radius:11px;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;}
+.el{font-size:12px;}.ep{font-size:12px;font-weight:700;color:var(--g);}
+.rlst{padding:0 16px 12px;display:flex;flex-direction:column;gap:8px;}
+.ri{background:var(--sf);border:1px solid var(--bd);border-radius:15px;padding:14px;display:flex;align-items:center;gap:12px;}
+.ricon{font-size:24px;flex-shrink:0;}.rinfo{flex:1;}
+.rname{font-size:12px;font-weight:600;}.rdet{font-size:10px;color:var(--mu);margin-top:2px;}
+.rcost{padding:5px 10px;border-radius:99px;background:rgba(0,232,122,.09);color:var(--g);font-size:10px;font-weight:700;white-space:nowrap;cursor:pointer;}
+
+/* CARBON */
+.co2hero{background:linear-gradient(135deg,#071a0d,#0a1533);border:1px solid rgba(0,232,122,.12);border-radius:20px;padding:20px;margin:0 16px 12px;text-align:center;}
+.co2n{font-size:46px;font-weight:900;line-height:1;color:var(--g);font-family:'Space Mono',monospace;}
+.co2u{font-size:13px;color:var(--mu);}.co2e{font-size:11px;color:rgba(0,232,122,.5);margin-top:6px;}
+.cbarw{margin:0 16px 12px;}
+.cbarl{display:flex;justify-content:space-between;font-size:10px;color:var(--mu);margin-bottom:5px;}
+.cbarbg{height:6px;background:var(--sf2);border-radius:99px;overflow:hidden;}
+.cbarf{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--g),var(--c));transition:width 1s ease;}
+.wchart{padding:0 16px 12px;}
+.wbars{display:flex;align-items:flex-end;gap:6px;height:66px;}
+.wbw{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.wb{width:100%;border-radius:4px 4px 0 0;background:rgba(0,232,122,.26);transition:all .6s ease;}
+.wb:hover{background:var(--g);}.wb.today{background:var(--g);}
+.wd{font-size:8px;color:var(--mu);}
+.cmpg{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px 12px;}
+.cmpc{background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:14px;text-align:center;}
+.cmpico{font-size:24px;margin-bottom:6px;}.cmpv{font-size:16px;font-weight:700;}
+.cmpv.g{color:var(--g);}.cmpv.r{color:var(--r);}.cmpv.c{color:var(--c);}.cmpv.y{color:var(--y);}
+.cmpl{font-size:9px;color:var(--mu);margin-top:2px;}
+
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;padding:24px;gap:8px;color:var(--mu);font-size:12px;}
+.spin{width:16px;height:16px;border:2px solid var(--bd);border-top-color:var(--g);border-radius:50%;animation:spin .8s linear infinite;}
+
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="sp-logo">빈자리</div>
+  <div class="sp-sub">Seat Sharing · Carbon Neutral</div>
+  <div class="sp-bar-wrap"><div class="sp-bar"></div></div>
+</div>
+
+<!-- NOTIF -->
+<div class="notif" id="notif">
+  <div class="ni" id="ni">🪑</div>
+  <div class="nt" id="nt">알림</div>
+  <div class="nx" onclick="App.hideNotif()">✕</div>
+</div>
+
+<!-- 목적지 모달 -->
+<div class="mo" id="modal-dest" onclick="App.closeMo('modal-dest',event)">
+  <div class="ms">
+    <div class="mh"></div>
+    <div class="mtitle">목적지 선택</div>
+    <div class="di" onclick="App.setDest('강남역')"><div><div class="dl">강남역</div><div class="ds">2호선 · 3정거장</div></div></div>
+    <div class="di" onclick="App.setDest('잠실역')"><div><div class="dl">잠실역</div><div class="ds">2호선 · 6정거장</div></div></div>
+    <div class="di" onclick="App.setDest('건대입구역')"><div><div class="dl">건대입구역</div><div class="ds">2호선 · 4정거장</div></div></div>
+    <div class="di" onclick="App.setDest('홍대입구역')"><div><div class="dl">홍대입구역</div><div class="ds">2호선 · 8정거장</div></div></div>
+    <div class="di" onclick="App.setDest('신촌역')"><div><div class="dl">신촌역</div><div class="ds">2호선 · 9정거장</div></div></div>
+  </div>
+</div>
+
+<!-- 하차 등록 모달 (핵심!) -->
+<div class="mo" id="modal-exit" onclick="App.closeMo('modal-exit',event)">
+  <div class="ms">
+    <div class="mh"></div>
+    <div class="mtitle">🚪 하차 예정 등록</div>
+    <div style="font-size:11px;color:var(--mu);margin-bottom:14px;line-height:1.6;">
+      내가 내릴 역을 등록하면 근처 탑승자에게 알림이 가요.<br>
+      <strong style="color:var(--g)">+20P</strong> 적립 + 실제 하차 시 <strong style="color:var(--g)">+10P</strong> 추가!
+    </div>
+    <div class="exit-form" style="margin:0 0 12px;padding:14px;">
+      <div class="ef-row">
+        <label class="ef-label">하차 예정 역</label>
+        <select class="ef-select" id="exit-station-input">
+          <option value="">선택하세요</option>
+          <option>역삼역</option><option>강남역</option><option>교대역</option>
+          <option>서초역</option><option>방배역</option><option>사당역</option>
+          <option>낙성대역</option><option>서울대입구역</option>
+        </select>
+      </div>
+      <div class="ef-row-2">
+        <div>
+          <label class="ef-label">위치 (창문 기준)</label>
+          <select class="ef-select" id="exit-side-input">
+            <option value="top">위쪽 (창문쪽)</option>
+            <option value="bot">아래쪽 (창문쪽)</option>
+          </select>
+        </div>
+        <div>
+          <label class="ef-label">도어 구역</label>
+          <select class="ef-select" id="exit-door-input">
+            <option value="z1">문1↔문2</option>
+            <option value="z2">문2↔문3</option>
+            <option value="z3">문3↔문4</option>
+          </select>
+        </div>
+      </div>
+      <div class="ef-priority" onclick="App.togglePriority()">
+        <input type="checkbox" id="exit-priority">
+        <span class="ef-priority-label">♿ 교통약자 우선 매칭 (임산부·노약자) +50P</span>
+      </div>
+    </div>
+    <button class="btn-p" onclick="App.submitExit()">🚪 하차 정보 등록하기</button>
+  </div>
+</div>
+
+<!-- ═══ HOME ═══ -->
+<div class="page active" id="page-home">
+  <div class="topbar">
+    <div class="tlogo">빈자리</div>
+    <div class="pts-badge">🌿 <span id="home-pts">0</span> P</div>
+  </div>
+
+  <div class="hero">
+    <div class="htitle"><em>내 앞 사람</em>이 언제 내리나요?<br>직접 공유하고 포인트 받기</div>
+    <div class="hdesc">
+      "나 X역에서 내려요"를 등록하면 근처 탑승자에게 알림이 갑니다.<br>
+      도움을 주면 포인트, 받으면 편의 — 모두가 이득!
+    </div>
+    <button class="btn-p" onclick="App.openMo('modal-dest')">🔍 빈자리 찾기</button>
+    <button class="btn-s" onclick="App.openMo('modal-exit')">🚪 내 하차 정보 등록 (+20P)</button>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi"><div class="kv g" id="kpi-exits">—</div><div class="kl">현재 칸 하차 예정</div></div>
+    <div class="kpi"><div class="kv y" id="kpi-min">—</div><div class="kl">가장 빠른 하차</div></div>
+    <div class="kpi"><div class="kv c" id="kpi-pts">0</div><div class="kl">내 포인트</div></div>
+  </div>
+
+  <div class="beacon">
+    <div class="bdot"></div>
+    <div class="btxt" id="beacon-txt">현재 위치 인식 중...</div>
+  </div>
+
+  <div id="home-match-area"></div>
+
+  <!-- 포인트 안내 -->
+  <span class="slbl">포인트 적립 방법</span>
+  <div class="elst">
+    <div class="ei"><span class="el">🚪 하차 정보 등록</span><span class="ep">+20 P</span></div>
+    <div class="ei"><span class="el">✅ 실제 하차 완료</span><span class="ep">+10 P</span></div>
+    <div class="ei"><span class="el">♿ 교통약자 매칭</span><span class="ep">+50 P</span></div>
+    <div class="ei"><span class="el">🪑 착석 확인</span><span class="ep">+10 P</span></div>
+    <div class="ei"><span class="el">🌿 탄소 절감 1kg</span><span class="ep">+30 P</span></div>
+  </div>
+</div>
+
+<!-- ═══ SEAT (좌석 현황) ═══ -->
+<div class="page" id="page-train">
+  <div class="topbar">
+    <div style="font-size:15px;font-weight:700">🚇 열차 좌석 현황</div>
+    <div class="lbadge line2"><div class="l2dot"></div>2호선</div>
+  </div>
+
+  <div style="padding:0 16px 5px;display:flex;gap:7px;align-items:center;">
+    <span style="font-size:12px;color:var(--mu)">선릉</span>
+    <span style="font-size:12px;color:var(--g);font-weight:700">→ 강남 방면</span>
+    <span style="font-size:10px;color:var(--mu);margin-left:auto" id="arrival-txt">로딩 중...</span>
+  </div>
+
+  <div class="st-scroll">
+    <div class="sti psd"><div class="stn">성수</div><div class="stl"></div><div class="std"></div></div>
+    <div class="sti psd"><div class="stn">뚝섬</div><div class="stl"></div><div class="std"></div></div>
+    <div class="sti psd"><div class="stn">구의</div><div class="stl"></div><div class="std"></div></div>
+    <div class="sti cur"><div class="stn">선릉</div><div class="stl"></div><div class="std"></div><div class="stm">현재</div></div>
+    <div class="sti"><div class="stn">역삼</div><div class="stl"></div><div class="std"></div><div class="stm" id="next-min">2분</div></div>
+    <div class="sti dst"><div class="stn">강남</div><div class="stl"></div><div class="std"></div><div class="stm">목적지</div></div>
+    <div class="sti"><div class="stn">교대</div><div class="stl"></div><div class="std"></div></div>
+    <div class="sti"><div class="stn">서초</div><div class="stl"></div><div class="std"></div></div>
+  </div>
+
+  <!-- 하차 등록 버튼 (좌석 탭에서도 접근 가능) -->
+  <div style="padding:4px 16px 8px;display:flex;align-items:center;justify-content:space-between;">
+    <span style="font-size:10px;color:var(--mu)">⭐ 칸 선택 (AI 추천 강조)</span>
+    <button onclick="App.openMo('modal-exit')" style="background:rgba(0,232,122,.12);border:1px solid rgba(0,232,122,.3);color:var(--g);font-size:10px;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;">🚪 하차 등록 +20P</button>
+  </div>
+  <div class="car-scroll" id="car-scroll"></div>
+
+  <div class="zone-row">
+    <div class="zc"><div class="zn">🚪 앞쪽</div><div class="zv g" id="zf">—</div><div class="zs">하차 예정</div></div>
+    <div class="zc"><div class="zn">🪑 가운데</div><div class="zv y" id="zm">—</div><div class="zs">하차 예정</div></div>
+    <div class="zc"><div class="zn">🚪 뒤쪽</div><div class="zv g" id="zb">—</div><div class="zs">하차 예정</div></div>
+  </div>
+
+  <div style="padding:0 16px 3px;display:flex;justify-content:space-between;align-items:center;">
+    <div style="font-size:11px;font-weight:700" id="car-ttl">3호차 내부 배치도</div>
+    <div id="crowd-badge-wrap"></div>
+  </div>
+  <div class="smap" id="smap"></div>
+
+  <div class="leg2" style="margin-top:5px">
+    <div class="l2i"><div class="ld" style="background:rgba(0,232,122,.5);border-color:rgba(0,232,122,.8);box-shadow:0 0 0 2px var(--g)"></div>🙋 직접 등록</div>
+    <div class="l2i"><div class="ld" style="background:rgba(0,232,122,.4);border-color:rgba(0,232,122,.7)"></div>1~2정거장</div>
+    <div class="l2i"><div class="ld" style="background:rgba(255,214,0,.4);border-color:rgba(255,214,0,.7)"></div>3~5정거장</div>
+    <div class="l2i"><div class="ld" style="background:rgba(255,61,90,.3);border-color:rgba(255,61,90,.6)"></div>장거리</div>
+    <div class="l2i"><div class="ld" style="background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.1)"></div>빈자리</div>
+    <div class="l2i"><div class="ld" style="background:rgba(0,212,255,.16);border-color:var(--c)"></div>AI 추천</div>
+  </div>
+
+  <div class="mcard" style="margin:8px 16px 16px" id="rec-card">
+    <div class="mib">✨</div>
+    <div class="minfo">
+      <div class="mttl" id="rec-ttl">좌석 정보 로딩 중...</div>
+      <div class="msub" id="rec-sub">잠시만요</div>
+    </div>
+    <button class="mbtn" onclick="App.confirmSeat()">착석 확인 +10P</button>
+  </div>
+</div>
+
+<!-- ═══ AI 예측 ═══ -->
+<div class="page" id="page-ai">
+  <div class="topbar">
+    <div style="font-size:15px;font-weight:700">🤖 AI 예측 · 데이터 분석</div>
+    <div style="font-size:9px;background:rgba(167,139,250,.1);color:var(--p);padding:3px 9px;border-radius:99px;border:1px solid rgba(167,139,250,.23)">실시간 학습 중</div>
+  </div>
+
+  <div class="ai-hero">
+    <div class="ai-tag">🤖 크라우드소싱 + AI</div>
+    <div class="ai-htitle">사용자 데이터가 만드는<br><em>탄소중립 대중교통</em></div>
+    <div class="ai-hdesc">
+      사용자가 직접 등록한 하차 정보 + 서울교통공사 혼잡도 통계를<br>
+      AI가 학습해 최적 좌석을 예측합니다.
+    </div>
+  </div>
+
+  <!-- 데이터 파이프라인 -->
+  <div class="pipe">
+    <div class="ptitle">⚙️ 데이터 수집 파이프라인</div>
+    <div class="pstep">
+      <div class="pico" style="background:rgba(0,232,122,.12)">🙋</div>
+      <div class="pbody">
+        <div class="pname">사용자 직접 입력 (핵심)</div>
+        <div class="pdesc">"나 X역에서 내려요" 직접 등록 → 같은 칸 탑승자에게 실시간 알림. 비콘 없이 크라우드소싱으로 개별 좌석 데이터 수집.</div>
+        <span class="pbadge" style="background:rgba(0,232,122,.1);color:var(--g);border:1px solid rgba(0,232,122,.2)">+20P 인센티브</span>
+      </div>
+    </div>
+    <div class="pstep">
+      <div class="pico" style="background:rgba(0,212,255,.11)">📡</div>
+      <div class="pbody">
+        <div class="pname">서울 공공 API (OA-12764)</div>
+        <div class="pdesc">실시간 열차 도착 정보 · 현재 열차 위치. API 키 발급 후 즉시 실제 데이터 연동.</div>
+        <span class="pbadge" style="background:rgba(0,212,255,.1);color:var(--c);border:1px solid rgba(0,212,255,.2)">실시간 스트림</span>
+      </div>
+    </div>
+    <div class="pstep">
+      <div class="pico" style="background:rgba(0,232,122,.09)">📊</div>
+      <div class="pbody">
+        <div class="pname">혼잡도 통계 (OA-12928)</div>
+        <div class="pdesc">서울교통공사 1~8호선 30분 단위 평균 혼잡도. 역별·시간대별 패턴 분석에 활용.</div>
+        <span class="pbadge" style="background:rgba(0,232,122,.09);color:var(--g);border:1px solid rgba(0,232,122,.18)">내장 데이터 (2024)</span>
+      </div>
+    </div>
+    <div class="pstep">
+      <div class="pico" style="background:rgba(167,139,250,.09)">🧠</div>
+      <div class="pbody">
+        <div class="pname">ML 패턴 학습 · 좌석 추천</div>
+        <div class="pdesc">공공 통계 + 크라우드소싱 데이터를 XGBoost 모델로 학습. 역·호차·시간대·요일 → 하차 확률 출력.</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">
+          <span class="pbadge" style="background:rgba(167,139,250,.1);color:var(--p);border:1px solid rgba(167,139,250,.2)">XGBoost</span>
+          <span class="pbadge" style="background:rgba(167,139,250,.1);color:var(--p);border:1px solid rgba(167,139,250,.2)">데이터 누적 → 정확도↑</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 히트맵 -->
+  <div class="heatmap">
+    <div style="font-size:12px;font-weight:700;margin-bottom:7px;display:flex;align-items:center;gap:6px">
+      🚇 호차별 빈자리 현황
+      <span class="tag-p" style="margin-left:auto">🤖 AI 분석</span>
+    </div>
+    <div class="hm-row" id="hm-row"></div>
+    <div class="hm-leg">
+      <div class="hml"><div class="hmld" style="background:var(--g)"></div>여유</div>
+      <div class="hml"><div class="hmld" style="background:var(--y)"></div>보통</div>
+      <div class="hml"><div class="hmld" style="background:var(--r)"></div>혼잡</div>
+    </div>
+  </div>
+
+  <!-- TOP2 -->
+  <div style="padding:0 16px 8px;font-size:12px;font-weight:700">⭐ AI 추천 빈자리 TOP 2</div>
+  <div id="top2-wrap"></div>
+
+  <!-- 패턴 -->
+  <div style="padding:0 16px 7px;font-size:12px;font-weight:700">📊 AI 학습 패턴</div>
+  <div class="plist">
+    <div class="pitem"><div class="ptime">08:00~09:30</div><div class="ptxt"><strong>강남·역삼 극혼잡</strong><span> — 5~7호차 탑승 시 혼잡도 약 23%↓. 사용자 하차 등록 많을수록 정확도 향상.</span></div></div>
+    <div class="pitem"><div class="ptime">잠실 10-3</div><div class="ptxt"><strong>환승 최적 도어</strong><span> — 8호선 환승 계단 최근접. 3정거장 내 50% 공석.</span></div></div>
+    <div class="pitem"><div class="ptime">17:30~19:30</div><div class="ptxt"><strong>교대역 대규모 하차</strong><span> — 퇴근시간 평균 28석 공석. 3~5호차 추천.</span></div></div>
+  </div>
+
+  <!-- 학습 현황 -->
+  <div style="padding:0 16px 7px;font-size:12px;font-weight:700">📈 모델 학습 현황</div>
+  <div class="lgrid">
+    <div class="lcard"><div class="lnum" style="color:var(--c)" id="st-records">2.4M</div><div class="llbl">공공 데이터 레코드</div></div>
+    <div class="lcard"><div class="lnum" style="color:var(--g)" id="st-acc">91%</div><div class="llbl">예측 정확도</div></div>
+    <div class="lcard"><div class="lnum" style="color:var(--p)" id="st-crowd">0</div><div class="llbl">크라우드소싱 등록 수</div></div>
+    <div class="lcard"><div class="lnum" style="color:var(--y)" id="st-trained">12h</div><div class="llbl">마지막 재학습</div></div>
+  </div>
+</div>
+
+<!-- ═══ REWARDS ═══ -->
+<div class="page" id="page-rewards">
+  <div class="topbar"><div style="font-size:15px;font-weight:700">🎁 마일리지 & 보상</div></div>
+  <div class="ptsbig">
+    <div class="pnum" id="pts-n">0</div>
+    <div class="punt">포인트</div>
+    <div class="psub" id="pts-sub">교통카드 ₩0 상당</div>
+  </div>
+  <span class="slbl">이번 달 적립 이력</span>
+  <div id="point-log" class="elst"></div>
+  <span class="slbl">포인트 사용처</span>
+  <div class="rlst">
+    <div class="ri"><div class="ricon">🚌</div><div class="rinfo"><div class="rname">교통카드 충전</div><div class="rdet">1P = ₩1</div></div><div class="rcost" onclick="App.showN('💳','충전 완료!')">사용</div></div>
+    <div class="ri"><div class="ricon">☕</div><div class="rinfo"><div class="rname">스타벅스 쿠폰</div><div class="rdet">아메리카노 1잔</div></div><div class="rcost">500 P</div></div>
+    <div class="ri"><div class="ricon">🏪</div><div class="rinfo"><div class="rname">CU 편의점</div><div class="rdet">3,000원 상품권</div></div><div class="rcost">300 P</div></div>
+    <div class="ri"><div class="ricon">🌳</div><div class="rinfo"><div class="rname">탄소 크레딧 기증</div><div class="rdet">환경부 인증 나무 심기</div></div><div class="rcost">200 P</div></div>
+  </div>
+</div>
+
+<!-- ═══ CARBON ═══ -->
+<div class="page" id="page-carbon">
+  <div class="topbar"><div style="font-size:15px;font-weight:700">🌿 탄소 절감 현황</div><div style="font-size:10px;color:var(--mu)">2026년 5월</div></div>
+  <div class="co2hero">
+    <div style="font-size:10px;color:var(--mu);margin-bottom:3px;letter-spacing:2px">THIS MONTH</div>
+    <div class="co2n" id="co2-n">—</div>
+    <div class="co2u">kg CO₂ 절감</div>
+    <div class="co2e" id="co2-eq">계산 중...</div>
+  </div>
+  <div style="padding:0 16px 5px;font-size:11px;font-weight:700">목표 달성률 <span style="color:var(--g)">78%</span></div>
+  <div class="cbarw"><div class="cbarl"><span>0 kg</span><span>목표 6 kg</span></div><div class="cbarbg"><div class="cbarf" style="width:78%"></div></div></div>
+  <div style="padding:0 16px 5px;font-size:11px;font-weight:700">주간 현황</div>
+  <div class="wchart"><div class="wbars" id="wbars"></div></div>
+  <div style="padding:0 16px 5px;font-size:11px;font-weight:700">비교 분석</div>
+  <div class="cmpg">
+    <div class="cmpc"><div class="cmpico">🚇</div><div class="cmpv g" id="c-sub">—</div><div class="cmpl">지하철 이용시</div></div>
+    <div class="cmpc"><div class="cmpico">🚗</div><div class="cmpv r">13.2 kg</div><div class="cmpl">자가용 이용시</div></div>
+    <div class="cmpc"><div class="cmpico">📅</div><div class="cmpv c">22일</div><div class="cmpl">이용 일수</div></div>
+    <div class="cmpc"><div class="cmpico">🏆</div><div class="cmpv y" id="c-rank">—</div><div class="cmpl">절감 랭킹</div></div>
+  </div>
+  <div class="card">
+    <div style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:8px">탄소 계산 방식</div>
+    <div style="font-size:11px;color:var(--mu);line-height:1.8">절감량 = 이동거리 × 0.169 kg/km<br><span style="color:var(--g)">(자동차 0.210 - 지하철 0.041)</span><br><span style="font-size:10px">환경부 수송부문 온실가스 배출계수 기준</span></div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <button class="nb active" onclick="App.showPage('home',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>홈</span>
+  </button>
+  <button class="nb" onclick="App.showPage('train',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="3"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="18" x2="12" y2="20"/><circle cx="8" cy="11" r="1" fill="currentColor"/><circle cx="16" cy="11" r="1" fill="currentColor"/></svg><span>좌석</span>
+  </button>
+  <button class="nb" onclick="App.showPage('ai',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span>AI 예측</span>
+  </button>
+  <button class="nb" onclick="App.showPage('rewards',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg><span>보상</span>
+  </button>
+  <button class="nb" onclick="App.showPage('carbon',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M8 12s1-4 4-4 4 4 4 4-1 4-4 4-4-4-4-4z"/></svg><span>탄소</span>
+  </button>
+</nav>
+
+<script>
+/**
+ * 빈자리 — Frontend App
+ * 백엔드 API와 실제 통신
+ */
+
+const API   = "http://localhost:8000";   // 배포 시 Railway/Render URL 교체
+const UID   = "user_" + (localStorage.getItem("binjari_uid") || (() => {
+  const id = Math.random().toString(36).slice(2,10);
+  localStorage.setItem("binjari_uid", id);
+  return id;
+})());
+
+// 현재 탑승 정보 (체크인 시 설정)
+const State = {
+  line:        "2",
+  station:     "선릉",
+  car:         3,
+  destination: null,
+  exitId:      null,   // 내가 등록한 하차 exit_id
+  mapData:     null,
+  currentPts:  0,
+};
+
+const ZONES = ["priA","z1","z2","z3","priB"];
+const ZSIZ  = {priA:2,z1:4,z2:4,z3:4,priB:2};
+const ZL    = {priA:"앞 우선석",z1:"문1↔문2",z2:"문2↔문3",z3:"문3↔문4",priB:"뒤 우선석"};
+const DOOR_MAP = {z1:1,z2:2,z3:3,priA:1,priB:4};
+
+// ═══════════════════════════════════════════
+const App = {
+
+  // ── 초기화 ────────────────────────────────
+  async init() {
+    this.hideSplash();
+    await this.initUser();
+    await this.loadAll();
+    this.buildCarScroll(State.car);
+    await this.loadSeats(State.station, State.car);
+    this.buildWeekBars();
+    setInterval(() => this.poll(), 30000);  // 30초마다 새로고침
+  },
+
+  hideSplash() {
+    setTimeout(() => {
+      document.getElementById("splash").style.opacity = "0";
+      setTimeout(() => document.getElementById("splash").style.display = "none", 600);
+    }, 2300);
+  },
+
+  async initUser() {
+    try {
+      const res  = await fetch(`${API}/api/user`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({user_id:UID, nickname:"익명"})
+      });
+      const data = await res.json();
+      State.currentPts = data.total_points || 0;
+      this.updatePtsUI(State.currentPts);
+    } catch(e) { console.warn("user init:", e); }
+  },
+
+  async loadAll() {
+    await Promise.allSettled([
+      this.loadPredict(),
+      this.loadReward(),
+      this.loadCarbon(),
+    ]);
+  },
+
+  async poll() {
+    await this.loadPredict();
+    await this.loadSeats(State.station, State.car);
+  },
+
+  // ── NAV ────────────────────────────────────
+  showPage(name, el) {
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll(".nb").forEach(n => n.classList.remove("active"));
+    document.getElementById("page-" + name).classList.add("active");
+    el.classList.add("active");
+  },
+
+  // ── 알림 ───────────────────────────────────
+  showN(icon, text) {
+    clearTimeout(this._nt);
+    document.getElementById("ni").textContent = icon;
+    document.getElementById("nt").textContent = text;
+    document.getElementById("notif").classList.add("show");
+    this._nt = setTimeout(() => this.hideNotif(), 3400);
+  },
+  hideNotif() { document.getElementById("notif").classList.remove("show"); },
+
+  // ── 모달 ───────────────────────────────────
+  openMo(id)         { document.getElementById(id).classList.add("open"); },
+  closeMo(id, e)     { if(e.target.id===id) document.getElementById(id).classList.remove("open"); },
+  closeModal(id)     { document.getElementById(id).classList.remove("open"); },
+
+  setDest(name) {
+    State.destination = name;
+    document.getElementById("modal-dest").classList.remove("open");
+    this.showN("📍", `${name}(으)로 목적지 설정!`);
+    // 해당 역 방향 좌석 갱신
+    this.loadSeats(State.station, State.car);
+    this.showPage("train", document.querySelectorAll(".nb")[1]);
+  },
+
+  togglePriority() {
+    const cb = document.getElementById("exit-priority");
+    cb.checked = !cb.checked;
+  },
+
+  // ── 하차 정보 등록 (핵심) ─────────────────
+  async submitExit() {
+    const exitStation = document.getElementById("exit-station-input").value;
+    if (!exitStation) { this.showN("⚠️","하차 역을 선택해주세요"); return; }
+
+    const side     = document.getElementById("exit-side-input").value;
+    const doorZone = document.getElementById("exit-door-input").value;
+    const isPri    = document.getElementById("exit-priority").checked;
+
+    try {
+      const res = await fetch(`${API}/api/register-exit`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          user_id:      UID,
+          line:         State.line,
+          station:      State.station,
+          car:          State.car,
+          door_zone:    doorZone,
+          side:         side,
+          exit_station: exitStation.replace("역",""),
+          is_priority:  isPri,
+        }),
+      });
+      const data = await res.json();
+      State.exitId     = data.exit_id;
+      State.currentPts = data.total_points;
+      this.updatePtsUI(data.total_points);
+      this.closeModal("modal-exit");
+      this.showN("🎉", `하차 등록 완료! +${data.points_earned}P 적립`);
+
+      // 홈 매칭 카드 표시
+      document.getElementById("home-match-area").innerHTML = `
+        <div class="mcard">
+          <div class="mib">🚪</div>
+          <div class="minfo">
+            <div class="mttl">${exitStation} 하차 등록됨</div>
+            <div class="msub">${ZL[doorZone]} ${side==="top"?"위쪽":"아래쪽"} · 실제 하차 시 +10P 추가</div>
+          </div>
+          <button class="mbtn" onclick="App.confirmMyExit()">하차 완료</button>
+        </div>
+      `;
+
+      // 좌석 맵 새로고침
+      await this.loadSeats(State.station, State.car);
+
+    } catch(e) {
+      this.showN("❌","등록 실패. 백엔드 서버를 확인해주세요.");
+      console.error(e);
+    }
+  },
+
+  async confirmMyExit() {
+    if (!State.exitId) return;
+    try {
+      const res  = await fetch(`${API}/api/confirm-exit`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({exit_id:State.exitId, actual_station:State.destination||"강남"}),
+      });
+      const data = await res.json();
+      State.currentPts = data.total_points;
+      this.updatePtsUI(data.total_points);
+      State.exitId = null;
+      document.getElementById("home-match-area").innerHTML = "";
+      this.showN("✅", `하차 완료! +${data.points_earned}P 추가 적립!`);
+    } catch(e) { console.error(e); }
+  },
+
+  async confirmSeat() {
+    // 착석 확인 → +10P
+    try {
+      // 현재 추천 exit_id가 있으면 API 호출
+      if (State.recExitId) {
+        const res  = await fetch(`${API}/api/confirm-seat`, {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({exit_id:State.recExitId, seeker_id:UID}),
+        });
+        const data = await res.json();
+        State.currentPts = data.seeker_total || State.currentPts + 10;
+      } else {
+        State.currentPts += 10;
+      }
+      this.updatePtsUI(State.currentPts);
+      this.showN("🪑","착석 확인! +10P 적립!");
+    } catch(e) { this.showN("🪑","착석 확인! +10P 적립!"); }
+  },
+
+  // ── API 데이터 로드 ────────────────────────
+
+  async loadPredict() {
+    try {
+      const res  = await fetch(`${API}/api/predict/${encodeURIComponent(State.station)}?line=${State.line}`);
+      const data = await res.json();
+
+      // 도착 정보
+      const arr = data.arrival || {};
+      const arrTxt = document.getElementById("arrival-txt");
+      const nxtMin = document.getElementById("next-min");
+      if (arrTxt) arrTxt.textContent = `다음: ${arr.current_station||"역삼"}역 · ${arr.next_min||2}분`;
+      if (nxtMin) nxtMin.textContent = `${arr.next_min||2}분`;
+
+      // KPI
+      const bestCar = data.car_predictions?.find(c=>c.ai_rec);
+      if (bestCar) {
+        document.getElementById("kpi-min").textContent = "2정거장";
+        document.getElementById("kpi-pts").textContent = State.currentPts.toLocaleString();
+      }
+
+      // 비콘
+      const bt = document.getElementById("beacon-txt");
+      if (bt) bt.textContent = `2호선 ${State.station}역 — AI 분석 완료 · ${data.ai_rec_car||3}호차 추천`;
+
+      // 히트맵
+      this.buildHeatmap(data.car_predictions || []);
+
+      // TOP2
+      this.renderTop2(data.top_recommendations || []);
+
+      // 학습 현황
+      const stats = data.model_stats || {};
+      const sr = document.getElementById("st-records");
+      const sa = document.getElementById("st-acc");
+      const st = document.getElementById("st-trained");
+      if(sr) sr.textContent = "2.4M";
+      if(sa) sa.textContent = "91%";
+      if(st) st.textContent = stats.last_trained || "12h";
+
+    } catch(e) {
+      console.warn("predict:", e);
+      this.renderDefaultPredict();
+    }
+  },
+
+  async loadSeats(station, car) {
+    try {
+      const res  = await fetch(`${API}/api/exits/${State.line}/${encodeURIComponent(station)}/${car}`);
+      const data = await res.json();
+
+      // 크라우드소싱 카운트
+      const cnt = data.exit_count || 0;
+      document.getElementById("st-crowd").textContent = cnt;
+      document.getElementById("kpi-exits").textContent = cnt + "명";
+
+      const badge = document.getElementById("crowd-badge-wrap");
+      if (badge) {
+        badge.innerHTML = cnt > 0
+          ? `<div class="crowd-count">🙋 ${cnt}명 직접 등록</div>`
+          : `<div style="font-size:9px;color:var(--mu)">좌석 터치 → 상세</div>`;
+      }
+
+      // 좌석 맵 렌더
+      const seatMap = data.seat_map;
+      if (seatMap) {
+        this.renderSeatMap(seatMap, car);
+        this.updateZones(seatMap);
+        this.updateRec(seatMap, car, station);
+        State.mapData = seatMap;
+      }
+
+    } catch(e) {
+      console.warn("exits:", e);
+      this.buildFallbackMap(car);
+    }
+  },
+
+  async loadReward() {
+    try {
+      const res  = await fetch(`${API}/api/reward/${UID}`);
+      const data = await res.json();
+      State.currentPts = data.total_points;
+      this.updatePtsUI(data.total_points);
+
+      // 포인트 이력
+      const log = document.getElementById("point-log");
+      if (log && data.point_log?.length) {
+        log.innerHTML = data.point_log.map(l => `
+          <div class="ei">
+            <span class="el">${l.action==="exit_register"?"🚪 하차 등록":l.action==="checkin"?"🚇 탑승":"🎯 " + l.action}</span>
+            <span class="ep">+${l.points} P</span>
+          </div>
+        `).join("");
+      } else if (log) {
+        log.innerHTML = `<div class="ei"><span class="el" style="color:var(--mu)">아직 적립 내역이 없어요. 하차 정보를 등록해보세요!</span></div>`;
+      }
+    } catch(e) { console.warn("reward:", e); this.updatePtsUI(0); }
+  },
+
+  async loadCarbon() {
+    try {
+      const res  = await fetch(`${API}/api/carbon/${UID}`);
+      const data = await res.json();
+      const cn = document.getElementById("co2-n");
+      const ce = document.getElementById("co2-eq");
+      const cs = document.getElementById("c-sub");
+      const cr = document.getElementById("c-rank");
+      if(cn) cn.textContent = data.carbon_saved_kg.toFixed(1);
+      if(ce) ce.textContent = `= 소나무 ${data.eq_trees}그루 · 자동차 ${data.eq_car_km}km 운행 안 한 효과`;
+      if(cs) cs.textContent = data.carbon_saved_kg.toFixed(1) + " kg";
+      if(cr) cr.textContent = `상위 ${data.rank_pct}%`;
+    } catch(e) {
+      const cn = document.getElementById("co2-n"); if(cn) cn.textContent="4.7";
+      const ce = document.getElementById("co2-eq"); if(ce) ce.textContent="= 소나무 0.5그루 · 자동차 28km";
+    }
+  },
+
+  // ── UI 렌더 함수들 ──────────────────────────
+
+  updatePtsUI(pts) {
+    const hp = document.getElementById("home-pts");
+    const pn = document.getElementById("pts-n");
+    const kp = document.getElementById("kpi-pts");
+    const ps = document.getElementById("pts-sub");
+    if(hp) hp.textContent = pts.toLocaleString();
+    if(pn) this.animCount(pn, 0, pts, 1200);
+    if(kp) kp.textContent = pts.toLocaleString();
+    if(ps) ps.textContent = `교통카드 ₩${pts.toLocaleString()} 상당`;
+  },
+
+  buildCarScroll(sel) {
+    const wrap = document.getElementById("car-scroll");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    const CONG = [88,91,76,84,67,55,79,72,83,61];
+    CONG.forEach((pct, i) => {
+      const n   = i + 1;
+      const col = pct>=80?"var(--r)":pct>=55?"var(--y)":"var(--g)";
+      const rec = n===3;  // AI 추천 호차 (실제 서비스: 서버에서 받아옴)
+      const btn = document.createElement("div");
+      btn.className = "cbtn" + (n===sel?" sel":"");
+      btn.innerHTML = `
+        <div class="cnum" style="${n===sel?"color:var(--c)":rec?"color:var(--p)":""}">${n}${rec?"⭐":""}</div>
+        <div class="ccong"><div class="ccf" style="width:${pct}%;background:${col}"></div></div>
+        <div class="cpct" style="color:${col}">${pct}%</div>
+      `;
+      btn.onclick = async () => {
+        document.querySelectorAll(".cbtn").forEach(b=>{b.classList.remove("sel");b.querySelector(".cnum").style.color="";});
+        btn.classList.add("sel");
+        btn.querySelector(".cnum").style.color="var(--c)";
+        State.car = n;
+        document.getElementById("car-ttl").textContent = n+"호차 내부 배치도";
+        await this.loadSeats(State.station, n);
+        this.showN(rec?"⭐":"🚃", n+"호차"+(rec?" — AI 추천 호차!":""));
+      };
+      wrap.appendChild(btn);
+    });
+  },
+
+  buildHeatmap(carPreds) {
+    const wrap = document.getElementById("hm-row");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    const fallback = [88,91,76,84,67,55,79,72,83,61].map((p,i)=>({car:i+1,congestion:p,ai_rec:i===2}));
+    const data     = carPreds.length ? carPreds : fallback;
+    data.forEach(c => {
+      const col = c.congestion>=80?"var(--r)":c.congestion>=55?"var(--y)":"var(--g)";
+      const fh  = Math.round((c.congestion/100)*20);
+      const el  = document.createElement("div"); el.className="hmc";
+      if(c.ai_rec) el.style.border="1.5px solid var(--p)";
+      el.innerHTML=`<div class="hmn" style="${c.ai_rec?"color:var(--p)":""}">${c.car}호${c.ai_rec?"⭐":""}</div><div class="hmbar"><div class="hmf" style="height:${fh}px;background:${col}"></div></div><div class="hmpct" style="color:${col}">${c.congestion}%</div>`;
+      el.onclick=()=>{
+        this.showPage("train",document.querySelectorAll(".nb")[1]);
+        this.buildCarScroll(c.car); State.car=c.car;
+        document.getElementById("car-ttl").textContent=c.car+"호차 내부 배치도";
+        this.loadSeats(State.station, c.car);
+        this.showN(c.ai_rec?"⭐":"🚃",c.car+"호차 분석 완료");
+      };
+      wrap.appendChild(el);
+    });
+  },
+
+  renderTop2(recs) {
+    const wrap = document.getElementById("top2-wrap");
+    if (!wrap) return;
+    if (!recs.length) { this.renderDefaultTop2(); return; }
+    wrap.innerHTML = recs.map((r,i)=>`
+      <div class="airc">
+        <div class="airch">
+          <div>
+            <div style="font-size:9px;color:var(--mu);margin-bottom:3px">${["🥇 1순위","🥈 2순위"][i]}</div>
+            <div class="airspot">2호선 <span>${r.car}호차 · ${r.door||r.zone}</span></div>
+            <div style="font-size:10px;color:var(--mu);margin-top:2px">${r.side||""} ${r.zone||""}</div>
+            <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">
+              <span class="tag-g">✅ 추천</span>
+              ${r.crowd_data?'<span class="tag-c">🙋 실제 등록 데이터</span>':'<span class="tag-p">📊 통계 기반</span>'}
+            </div>
+          </div>
+          <div style="text-align:right"><div class="confn">${Math.round((r.confidence||0.85)*100)}%</div><div class="confl">신뢰도</div></div>
+        </div>
+        <div class="cbw"><div class="cbl">신뢰도</div><div class="cbb"><div class="cbf" style="width:${Math.round((r.confidence||0.85)*100)}%;background:linear-gradient(90deg,var(--g),var(--c))"></div></div></div>
+        <div class="insight">💡 ${r.insight||"혼잡도 통계 기반 예측. 사용자 하차 등록 시 실시간 업데이트."}</div>
+      </div>
+    `).join("");
+  },
+
+  renderDefaultTop2() {
+    const wrap = document.getElementById("top2-wrap");
+    if (!wrap) return;
+    wrap.innerHTML = `
+      <div class="airc">
+        <div class="airch">
+          <div><div style="font-size:9px;color:var(--mu);margin-bottom:3px">🥇 1순위</div><div class="airspot">2호선 <span>3호차 · 3-2↔3-3</span></div><div style="font-size:10px;color:var(--mu);margin-top:2px">위쪽 창문쪽 · 혼잡도 최저</div><div style="display:flex;gap:4px;margin-top:6px"><span class="tag-g">✅ 추천</span><span class="tag-p">📊 통계 기반</span></div></div>
+          <div style="text-align:right"><div class="confn">91%</div><div class="confl">신뢰도</div></div>
+        </div>
+        <div class="cbw"><div class="cbl">신뢰도</div><div class="cbb"><div class="cbf" style="width:91%;background:linear-gradient(90deg,var(--g),var(--c))"></div></div></div>
+        <div class="insight">💡 3호차는 이 시간대 혼잡도가 가장 낮습니다 (76%). <strong>하차 정보를 직접 등록</strong>하면 실시간 좌석 데이터로 업데이트됩니다.</div>
+      </div>
+    `;
+  },
+
+  renderSeatMap(seatMap, car) {
+    const w = document.getElementById("smap");
+    if (!w) return;
+    w.innerHTML = `
+      <div class="dbar"><span class="df">▶ 진행 방향 (앞)</span><span style="font-size:8px;color:var(--mu);opacity:.5">${car}호차</span><span class="db">(뒤) ◀</span></div>
+      <div class="wlbl">창문쪽 (위)</div><div class="ws"></div>
+      <div class="ss"><div class="tb" id="tb${car}"></div></div>
+      <div class="ws bot"></div><div class="wlbl">창문쪽 (아래)</div>
+    `;
+    const body = document.getElementById("tb"+car);
+    if (!body) return;
+
+    const cap = r => { const e=document.createElement("div"); e.className="tc"+(r?" r":""); return e; };
+    body.appendChild(cap(false));
+    ZONES.forEach((zk,zi) => {
+      if (zi>0) body.appendChild(this.mkDoor(car, zi, zi===2));
+      body.appendChild(this.mkZone(seatMap, zk, car));
+    });
+    body.appendChild(this.mkDoor(car, 4, false));
+    body.appendChild(cap(true));
+  },
+
+  mkDoor(car, dn, mine) {
+    const d=document.createElement("div"); d.className="td";
+    d.innerHTML=`<div class="dw"></div><div class="do${mine?" mine":""}"><span class="${mine?"dt":""}">${mine?"탑승":""}</span></div><div class="dw"></div><div class="dn">${car}-${dn}</div>`;
+    return d;
+  },
+
+  mkZone(seatMap, zk, car) {
+    const col=document.createElement("div"); col.className="tz";
+    const tr=document.createElement("div"); tr.className="tsr";
+    (seatMap.top[zk]||[]).forEach((s,i)=>tr.appendChild(this.mkSeat(s,"top",zk,i,car)));
+    col.appendChild(tr);
+    const al=document.createElement("div"); al.className="ta";
+    al.innerHTML=`<div class="tal"></div><div class="talb">${ZL[zk]}</div>`;
+    col.appendChild(al);
+    const br=document.createElement("div"); br.className="tsr";
+    (seatMap.bot[zk]||[]).forEach((s,i)=>br.appendChild(this.mkSeat(s,"bot",zk,i,car)));
+    col.appendChild(br);
+    return col;
+  },
+
+  mkSeat(s, side, zk, idx, car) {
+    const el=document.createElement("div");
+    // crowd=true이면 실제 사용자 등록 데이터
+    let cls="st ";
+    if (s.crowd)          cls+="sg crowd";
+    else if (s.type==="empty") cls+="se";
+    else if (s.type==="green") cls+="sg";
+    else if (s.type==="yellow") cls+="sy";
+    else if (s.type==="red")   cls+="sr";
+    else if (s.type==="priority") cls+="spri";
+    else cls+="se";
+    el.className=cls;
+
+    if (s.crowd) {
+      // 실제 사용자 등록 데이터 — 강조 표시
+      el.innerHTML=`<div class="si">🙋</div><div class="sn">${s.exit_station||"?"}역</div><div class="crowd-badge"></div>`;
+      if (s.exit_id) {
+        State.recExitId = s.exit_id;  // 착석 확인용
+      }
+    } else if (s.type==="priority") {
+      el.innerHTML=`<div class="si">♿</div><div class="sn">우선석</div>`;
+    } else if (s.type==="empty") {
+      el.innerHTML=`<div class="sn">빈자리</div>`;
+    } else {
+      el.innerHTML=`<div class="sn">${s.stops||"?"}역후</div>`;
+    }
+
+    const w=side==="top"?"위쪽":"아래쪽";
+    el.onclick=()=>{
+      if (s.crowd) {
+        App.showN("🙋",`${w} ${ZL[zk]} — ${s.exit_station}역 하차 예정 (직접 등록)`);
+      } else if (s.type==="empty") {
+        App.showN("🪑",`${w} ${ZL[zk]} — 빈자리! 앉으세요 😊`);
+      } else {
+        App.showN("📊",`${w} ${ZL[zk]} — 혼잡도 통계 기반 예측`);
+      }
+    };
+    return el;
+  },
+
+  updateZones(seatMap) {
+    const cg = (zones) => zones.reduce((acc, z) =>
+      acc + (seatMap.top[z]||[]).concat(seatMap.bot[z]||[])
+            .filter(s=>s.crowd||s.type==="green"||s.type==="empty").length, 0);
+    const zf=document.getElementById("zf"),zm=document.getElementById("zm"),zb=document.getElementById("zb");
+    if(zf) zf.textContent=cg(["priA","z1"])+"석";
+    if(zm) zm.textContent=cg(["z2"])+"석";
+    if(zb) zb.textContent=cg(["z3","priB"])+"석";
+  },
+
+  updateRec(seatMap, car, station) {
+    // 크라우드소싱 데이터 우선, 없으면 통계 기반
+    for (const side of ["top","bot"]) {
+      for (const zk of ["z1","z2","z3"]) {
+        for (const s of (seatMap[side][zk]||[])) {
+          if (s.crowd) {
+            const rt=document.getElementById("rec-ttl"), rs=document.getElementById("rec-sub");
+            if(rt) rt.textContent=`🙋 ${side==="top"?"위쪽":"아래쪽"} ${ZL[zk]} — ${s.exit_station}역 하차 예정`;
+            if(rs) rs.textContent="사용자 직접 등록 데이터 · 실시간 업데이트";
+            return;
+          }
+        }
+      }
+    }
+    // 크라우드 없으면 기본 메시지
+    const rt=document.getElementById("rec-ttl"), rs=document.getElementById("rec-sub");
+    if(rt) rt.textContent=`🤖 ${car}호차 AI 추천 (혼잡도 통계 기반)`;
+    if(rs) rs.textContent="하차 정보를 직접 등록하면 정확도가 올라가요!";
+  },
+
+  buildFallbackMap(car) {
+    // API 연결 안 될 때 기본 배치도
+    const fakeSm = {top:{}, bot:{}};
+    ZONES.forEach(z=>{
+      fakeSm.top[z]=Array.from({length:ZSIZ[z]},(_,i)=>{
+        const r=Math.random();
+        return {type:r<.12?"empty":r<.3?"green":r<.65?"yellow":"red",stops:Math.floor(Math.random()*8)+1,crowd:false};
+      });
+      fakeSm.bot[z]=Array.from({length:ZSIZ[z]},()=>{
+        const r=Math.random();
+        return {type:r<.12?"empty":r<.3?"green":r<.65?"yellow":"red",stops:Math.floor(Math.random()*8)+1,crowd:false};
+      });
+    });
+    this.renderSeatMap(fakeSm, car);
+    this.updateZones(fakeSm);
+    const rt=document.getElementById("rec-ttl"), rs=document.getElementById("rec-sub");
+    if(rt) rt.textContent="백엔드 연결 필요";
+    if(rs) rs.textContent="uvicorn app:app --reload 로 서버 실행 후 새로고침";
+  },
+
+  renderDefaultPredict() {
+    document.getElementById("beacon-txt").textContent="2호선 선릉역 — 백엔드 서버 미연결 (데모 모드)";
+    this.buildHeatmap([]);
+    this.renderDefaultTop2();
+  },
+
+  buildWeekBars() {
+    const c=document.getElementById("wbars"); if(!c) return;
+    const d=[55,70,48,85,62,30,20];
+    const days=["월","화","수","목","금","토","일"];
+    const mx=Math.max(...d);
+    d.forEach((v,i)=>{
+      const w=document.createElement("div"); w.className="wbw";
+      const b=document.createElement("div"); b.className="wb"+(i===4?" today":""); b.style.height="0";
+      setTimeout(()=>b.style.height=Math.round((v/mx)*58)+"px",400+i*80);
+      const l=document.createElement("div"); l.className="wd"; l.textContent=days[i];
+      w.appendChild(b); w.appendChild(l); c.appendChild(w);
+    });
+  },
+
+  animCount(el, from, to, dur) {
+    const s=performance.now();
+    const step=now=>{
+      const p=Math.min((now-s)/dur,1);
+      el.textContent=Math.floor(from+(to-from)*p).toLocaleString();
+      if(p<1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  },
+};
+
+window.addEventListener("load", () => App.init());
+
+</script>
+</body>
+</html>
